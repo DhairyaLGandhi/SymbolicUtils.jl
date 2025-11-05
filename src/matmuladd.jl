@@ -1,4 +1,5 @@
 # Pattern-based optimization templates for CSE
+const PRECACHE = IdDict()
 
 """
     OptimizationRule(name, detector, transformer, priority)
@@ -98,12 +99,24 @@ function detect_matmul_add_pattern(expr::Code.Let, state::Code.CSEState)
     matches = MatMulAddMatch[]
 
     for ((mul_idx, mul_val), (plus_idx, plus_val)) in candidates
-        A, B... = arguments(rhs(expr.pairs[mul_idx]))
+        A, B... = arguments(rhs(mul_val))
         Cs = isempty(net_additive_terms) ? continue : [pop!(net_additive_terms)]
-        push!(matches, MatMulAddMatch(A, B, Cs, expr.pairs[mul_idx], plus_val, mul_idx, plus_idx, "A*B + C"))
+        push!(matches, MatMulAddMatch(A, B, Cs, mul_val, plus_val, mul_idx, plus_idx, "A*B + C"))
     end
 
     isempty(matches) ? nothing : matches, net_additive_terms
+end
+
+function get_from_cache(x)
+    if haskey(PRECACHE, x)
+        v = get_tmp(PRECACHE[x], x)
+        copyto!(v, x)
+        v
+    else
+        PRECACHE[x] = DiffCache(copy(x))
+        v = get_tmp(PRECACHE[x], x)
+        v
+    end
 end
 
 transform_to_mul5_assignment(expr, ::Union{Nothing, AbstractVector{Nothing}, Tuple{Nothing, Nothing}}, state::Code.CSEState) = expr
@@ -131,7 +144,7 @@ function transform_to_mul5_assignment(expr, match_data_, state::Code.CSEState)
             end
         end
 
-        copy_call = Term{T}(copy, [C]; type=symtype(C))
+        copy_call = Term{T}(get_from_cache, [C]; type=symtype(C))
         mul_call = Term{T}(LinearAlgebra.mul!,
             [temp_var, A, B, Const{T}(1), Const{T}(1)];
             type=symtype(C))
