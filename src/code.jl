@@ -17,6 +17,7 @@ import SymbolicUtils: @matchable, BasicSymbolic, Sym, Term, iscall, operation, a
                       vartype, symtype, isadd, add_worker
 using Moshi.Match: @match
 import SymbolicIndexingInterface: symbolic_type, NotSymbolic
+using PreallocationTools: DiffCache
 
 ##== state management ==##
 
