@@ -88,7 +88,7 @@ function detect_matmul_add_pattern(expr::Code.Let, state::Code.CSEState)
             end
         end
     end
-    candidates = filter(!isnothing, reduce(vcat, candidates))
+    candidates = isempty(candidates) ? candidates : filter(!isnothing, reduce(vcat, candidates))
 
     all_additive_terms = map(candidates) do c
         arguments(rhs(c[2][2]))
@@ -119,9 +119,10 @@ function get_from_cache(x)
     end
 end
 
-transform_to_mul5_assignment(expr, ::Union{Nothing, AbstractVector{Nothing}, Tuple{Nothing, Nothing}}, state::Code.CSEState) = expr
+transform_to_mul5_assignment(expr, ::Tuple{Union{Nothing, AbstractVector{Nothing}, Tuple{Nothing, Nothing}}, <:Any}, state::Code.CSEState) = expr
 function transform_to_mul5_assignment(expr, match_data_, state::Code.CSEState)
     match_data_, net_additive_terms = match_data_
+    match_data_ === nothing && return expr
     Cset = Set(Iterators.flatten(getproperty.(match_data_, :Cs)))
     counter = 1
 
